@@ -22,7 +22,7 @@ Ensure you have Docker Desktop installed and running.
    docker build -t recommender-app .
 
 2. **Run the Container:**
-    '''bash
+    ```bash
     docker run -p 8000:8000 recommender-app
 
 3. **Access the API:**
