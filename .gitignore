@@ -1,3 +1,27 @@
+# Virtual Environments
+venv/
+.env
+anaconda-project/
+
+# Data - The "Golden Rule" (Never commit raw data)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Models - Binary files are better stored in S3/DVC, not Git
+models/*.pkl
+models/*.h5
+models/*.joblib
+
+# Python/Notebooks
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

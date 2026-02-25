@@ -1,52 +1,74 @@
 import pandas as pd
-import joblib # for saving the model
-from preprocess import filter_data, create_mappings, temporal_split
+import joblib
 from sklearn.decomposition import TruncatedSVD
 from scipy.sparse import csr_matrix
 import os
 
-def train_model():
-    # 1. Load Data (Using the Electronics data you have)
-    print("Loading data...")
-    reader = pd.read_json(r"C:\Users\ramak\OneDrive\Documents\projects\Recommendation System\data\raw data\Electronics.json.gz", 
-                          lines=True, chunksize=200000)
-    raw_df = next(reader)
+# Update these to match your actual local paths
+BASE_PATH = r"C:\Users\ramak\OneDrive\Documents\projects\Recommendation System"
+TRAIN_DATA_PATH = os.path.join(BASE_PATH, "data", "processed", "train.csv")
+MODEL_SAVE_PATH = os.path.join(BASE_PATH, "models", "recommender_v1.joblib")
 
-    # 2. Preprocess
-    print("Preprocessing and filtering...")
-    df = filter_data(raw_df)
-    df, user_map, item_map = create_mappings(df)
-    train_df, test_df = temporal_split(df)
+def train_model():
+    # 1. Load Processed Data
+    print(f"Reading training data from {TRAIN_DATA_PATH}...")
+    if not os.path.exists(TRAIN_DATA_PATH):
+        print("❌ Error: train.csv not found! Run preprocess.py first.")
+        return
+
+    train_df = pd.read_csv(TRAIN_DATA_PATH)
     
-    # 3. Create Sparse Matrix (Memory efficient way to handle 97% zeros)
-    # Rows = Users, Cols = Items, Values = Ratings
-    print("Creating sparse matrix...")
+    # 2. Create Sparse Matrix
+    # We explicitly define the shape to avoid index mismatch errors
+    n_users = train_df['user_idx'].max() + 1
+    n_items = train_df['item_idx'].max() + 1
+    
+    print(f"Creating {n_users}x{n_items} sparse matrix...")
     user_item_matrix = csr_matrix(
-        (train_df['overall'], (train_df['user_idx'], train_df['item_idx']))
+        (train_df['overall'], (train_df['user_idx'], train_df['item_idx'])),
+        shape=(n_users, n_items)
     )
     
-    # 4. Train SVD (Matrix Factorization)
-    print("Training SVD model...")
+    # 3. Train SVD
+    print("Training SVD model (Matrix Factorization)...")
     svd = TruncatedSVD(n_components=50, random_state=42)
     user_embeddings = svd.fit_transform(user_item_matrix)
     item_embeddings = svd.components_.T
+
+    # Create the item map
+    unique_asins = train_df['asin'].unique()
+    item_map = {asin: i for i, asin in enumerate(unique_asins)}
+
+    # Create the user map
+    unique_users = train_df['user_idx'].unique()
+    user_map = {user: i for i, user in enumerate(unique_users)}
+
+    # 4. Save Artifacts using Joblib (better for large matrices than pickle)
+    print("Saving model artifacts...")
+    os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
     
-    # 5. Save Artifacts
-    print("Saving model and mappings...")
-    os.makedirs(r"C:\Users\ramak\OneDrive\Documents\projects\Recommendation System\models", exist_ok=True)
-    # In a real project, we'd save these to be loaded by FastAPI later
-    import pickle
     artifacts = {
         "user_embeddings": user_embeddings,
         "item_embeddings": item_embeddings,
         "svd_model": svd,
-        "user_map": user_map,
-        "item_map": item_map
+        "user_map": user_map,   # Dictionary: {original_id: index}
+        "item_map": item_map    # Dictionary: {asin: index}
     }
-    with open(r"C:\Users\ramak\OneDrive\Documents\projects\Recommendation System\models\recommender_v1.pkl", "wb") as f:
-        pickle.dump(artifacts, f)
     
-    print("Done! Model saved to models/recommender_v1.pkl")
+    joblib.dump(artifacts, MODEL_SAVE_PATH)
+    print(f"✅ Done! Model saved to: {MODEL_SAVE_PATH}")
+
+def get_popular_items():
+    # Load the training data to calculate popularity
+    train_df = pd.read_csv("data/processed/train.csv")
+
+    # Count how many times each item appears and get the top 20
+    popular_items = train_df['item_idx'].value_counts().head(20).index.tolist()
+
+    # Save this list
+    joblib.dump(popular_items, "models/popular_items.joblib")
+    print(f"✅ Saved {len(popular_items)} popular items as fallback.")
 
 if __name__ == "__main__":
     train_model()
+    get_popular_items()

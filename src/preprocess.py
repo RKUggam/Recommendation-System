@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 
 def filter_data(df, min_user_reviews=5, min_item_reviews=5):
     """
@@ -40,3 +41,29 @@ def temporal_split(df, test_size=0.2):
     test_df = df.iloc[split_idx:]
     
     return train_df, test_df
+
+# src/preprocess.py
+
+def run_preprocessing_pipeline():
+    # 1. Load & Filter (The logic we already wrote)
+    reader = pd.read_json(r"C:\Users\ramak\OneDrive\Documents\projects\Recommendation System\data\raw data\Electronics.json.gz", 
+                          lines=True, chunksize=200000)
+    raw_df = next(reader)
+
+    # 2. Preprocess
+    print("Preprocessing and filtering...")
+    df = filter_data(raw_df)
+    df, user_map, item_map = create_mappings(df)
+    
+    # 2. Split
+    train_df, test_df = temporal_split(df)
+    
+    # 3. Physical Storage
+    os.makedirs("data/processed", exist_ok=True)
+    train_df.to_csv("data/processed/train.csv", index=False)
+    test_df.to_csv("data/processed/test.csv", index=False)
+    
+    print("📂 Data shards created: data/processed/train.csv and test.csv")
+
+if __name__ == "__main__":
+    run_preprocessing_pipeline()
