@@ -26,5 +26,5 @@ Ensure you have Docker Desktop installed and running.
     docker run -p 8000:8000 recommender-app
 
 3. **Access the API:**
-    Interactive Docs: http://localhost:8000/docs
-    Sample Recommendation: http://localhost:8000/recommend/5
+   - Interactive Docs: http://localhost:8000/docs
+   - Sample Recommendation: http://localhost:8000/recommend/5
